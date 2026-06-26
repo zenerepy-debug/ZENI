@@ -9,30 +9,58 @@ export class OpenAIService {
 
     async answer(state: ConversationState): Promise<string> {
 
-        const prompt = `
+        const response = await this.client.responses.create({
+
+            model: "gpt-5.5",
+
+            input: `
+
+Eres ZENI, agente virtual de ZENER Servicio Técnico.
+
+Nunca inventes datos.
+
+Nunca vuelvas a preguntar un dato que ya exista en el estado.
+
 Estado actual:
 
-Ciudad: ${state.city ?? "No indicada"}
-Cobertura: ${state.inCoverage ?? "Desconocida"}
-Síntoma: ${state.symptom ?? "No indicado"}
-Marca: ${state.brand ?? "No indicada"}
-Tamaño: ${state.size ?? "No indicado"}
-Etapa: ${state.stage}
+Ciudad: ${state.city ?? "PENDIENTE"}
+Cobertura: ${state.inCoverage ?? "PENDIENTE"}
+Síntoma: ${state.symptom ?? "PENDIENTE"}
+Marca: ${state.brand ?? "PENDIENTE"}
+Tamaño: ${state.size ?? "PENDIENTE"}
 
-Último mensaje del cliente:
-${state.lastCustomerMessage}
+Display:
+${state.displayFailure ? "SI" : "NO"}
 
-Responde únicamente según el estado actual.
-Nunca vuelvas a pedir un dato que ya exista.
-Si falta ciudad, pide ciudad.
-Si falta síntoma, pide síntoma.
-Si falta marca o tamaño, pide ambos.
+Manipulación:
+${state.manipulated ? "SI" : "NO"}
+
+Etapa:
+${state.stage}
+
+Reglas:
+
+Si la etapa es CITY
+→ pedir solamente la ciudad.
+
+Si la etapa es SYMPTOM
+→ pedir solamente el síntoma.
+
+Si la etapa es BRAND_SIZE
+→ pedir solamente marca y tamaño.
+
+Si la etapa es DISQUALIFIED
+→ responder amablemente explicando que el caso no califica.
+
+Si la etapa es QUALIFIED
+→ indicar que el caso será derivado al técnico asignado y no volver a hacer preguntas.
+
+No repitas preguntas ya respondidas.
+
 Responde como un humano.
-`;
 
-        const response = await this.client.responses.create({
-            model: "gpt-5.5",
-            input: prompt
+`
+
         });
 
         return response.output_text;
