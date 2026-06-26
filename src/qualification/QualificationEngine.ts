@@ -6,16 +6,37 @@ export class QualificationEngine {
 
         if (!state.city) {
             state.stage = "CITY";
+            state.qualified = false;
+            return state;
+        }
+
+        if (state.inCoverage === false) {
+            state.stage = "DISQUALIFIED";
+            state.qualified = false;
             return state;
         }
 
         if (!state.symptom) {
             state.stage = "SYMPTOM";
+            state.qualified = false;
+            return state;
+        }
+
+        if (state.displayFailure === true) {
+            state.stage = "DISQUALIFIED";
+            state.qualified = false;
+            return state;
+        }
+
+        if (state.manipulated === true) {
+            state.stage = "DISQUALIFIED";
+            state.qualified = false;
             return state;
         }
 
         if (!state.brand || !state.size) {
             state.stage = "BRAND_SIZE";
+            state.qualified = false;
             return state;
         }
 
@@ -23,7 +44,6 @@ export class QualificationEngine {
         state.qualified = true;
 
         return state;
-
     }
 
 }
