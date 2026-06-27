@@ -1,80 +1,71 @@
-export type Stage =
-  | "CITY"
-  | "SYMPTOM"
-  | "BRAND_SIZE"
-  | "QUALIFIED"
-  | "DISQUALIFIED";
-
 export interface ConversationState {
 
-  phone: string;
+    phone: string;
 
-  stage: Stage;
+    city: string | null;
 
-  city?: string;
+    inCoverage: boolean | null;
 
-  inCoverage?: boolean;
+    brand: string | null;
 
-  symptom?: string;
+    size: string | null;
 
-  brand?: string;
+    model: string | null;
 
-  size?: string;
+    symptom: string | null;
 
-  model?: string;
+    displayFailure: boolean | null;
 
-  displayFailure?: boolean;
+    manipulated: boolean | null;
 
-  manipulated?: boolean;
+    qualified: boolean;
 
-  qualified?: boolean;
+    transferred: boolean;
 
-  transferred?: boolean;
+    lastCustomerMessage: string;
 
-  lastCustomerMessage?: string;
+    createdAt: number;
 
-  createdAt: number;
-
-  updatedAt: number;
+    updatedAt: number;
 
 }
 
-export function createConversationState(phone: string): ConversationState {
+export function createConversationState(
+    phone: string
+): ConversationState {
 
-  const now = Date.now();
+    const now = Date.now();
 
-  return {
+    return {
 
-    phone,
+        phone,
 
-    stage: "CITY",
+        city: null,
 
-    city: undefined,
+        inCoverage: null,
 
-    inCoverage: undefined,
+        brand: null,
 
-    symptom: undefined,
+        size: null,
 
-    brand: undefined,
+        model: null,
 
-    size: undefined,
+        symptom: null,
 
-    model: undefined,
+        displayFailure: null,
 
-    displayFailure: undefined,
+        manipulated: null,
 
-    manipulated: undefined,
+        qualified: false,
 
-    qualified: false,
+        transferred: false,
 
-    transferred: false,
+        lastCustomerMessage: "",
 
-    lastCustomerMessage: "",
+        createdAt: now,
 
-    createdAt: now,
+        updatedAt: now
 
-    updatedAt: now
-
-  };
+    };
 
 }

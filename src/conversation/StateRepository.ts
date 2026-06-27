@@ -1,40 +1,44 @@
 import {
-  ConversationState,
-  createConversationState
+    ConversationState,
+    createConversationState
 } from "./ConversationState";
 
 export class StateRepository {
 
-  private readonly conversations = new Map<string, ConversationState>();
+    private readonly conversations =
+        new Map<string, ConversationState>();
 
-  get(phone: string): ConversationState {
+    get(phone: string): ConversationState {
 
-    let state = this.conversations.get(phone);
+        let state = this.conversations.get(phone);
 
-    if (!state) {
+        if (!state) {
 
-      state = createConversationState(phone);
+            state = createConversationState(phone);
 
-      this.conversations.set(phone, state);
+            this.conversations.set(phone, state);
+
+        }
+
+        return state;
 
     }
 
-    return state;
+    save(state: ConversationState): void {
 
-  }
+        state.updatedAt = Date.now();
 
-  save(state: ConversationState): void {
+        this.conversations.set(
+            state.phone,
+            state
+        );
 
-    state.updatedAt = Date.now();
+    }
 
-    this.conversations.set(state.phone, state);
+    clear(phone: string): void {
 
-  }
+        this.conversations.delete(phone);
 
-  delete(phone: string): void {
-
-    this.conversations.delete(phone);
-
-  }
+    }
 
 }

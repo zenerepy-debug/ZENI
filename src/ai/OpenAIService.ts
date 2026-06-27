@@ -7,63 +7,141 @@ export class OpenAIService {
         apiKey: process.env.OPENAI_API_KEY
     });
 
-    async answer(state: ConversationState): Promise<string> {
+    async extract(
+        state: ConversationState,
+        message: string
+    ): Promise<ConversationState> {
 
         const response = await this.client.responses.create({
 
             model: "gpt-5.5",
 
-            input: `
+            input: [
+                {
+                    role: "system",
+                    content: `
+Extrae información del mensaje del cliente.
 
-Eres ZENI, agente virtual de ZENER Servicio Técnico.
+Devuelve EXCLUSIVAMENTE un objeto JSON válido.
 
-Nunca inventes datos.
+No inventes información.
 
-Nunca vuelvas a preguntar un dato que ya exista en el estado.
+Si un dato no existe devuelve null.
 
-Estado actual:
+Formato:
 
-Ciudad: ${state.city ?? "PENDIENTE"}
-Cobertura: ${state.inCoverage ?? "PENDIENTE"}
-Síntoma: ${state.symptom ?? "PENDIENTE"}
-Marca: ${state.brand ?? "PENDIENTE"}
-Tamaño: ${state.size ?? "PENDIENTE"}
-
-Display:
-${state.displayFailure ? "SI" : "NO"}
-
-Manipulación:
-${state.manipulated ? "SI" : "NO"}
-
-Etapa:
-${state.stage}
-
-Reglas:
-
-Si la etapa es CITY
-→ pedir solamente la ciudad.
-
-Si la etapa es SYMPTOM
-→ pedir solamente el síntoma.
-
-Si la etapa es BRAND_SIZE
-→ pedir solamente marca y tamaño.
-
-Si la etapa es DISQUALIFIED
-→ responder amablemente explicando que el caso no califica.
-
-Si la etapa es QUALIFIED
-→ indicar que el caso será derivado al técnico asignado y no volver a hacer preguntas.
-
-No repitas preguntas ya respondidas.
-
-Responde como un humano.
-
+{
+  "city": string|null,
+  "brand": string|null,
+  "size": string|null,
+  "model": string|null,
+  "symptom": string|null,
+  "displayFailure": boolean|null,
+  "manipulated": boolean|null
+}
 `
+                },
+                {
+                    role: "user",
+                    content: message
+                }
+            ]
 
         });
 
-        return response.output_text;
+        const text =
+            response.output_text ??
+            "{}";
+
+        let data: any = {};
+
+        try {
+            data = JSON.parse(text);
+        } catch {
+            return state;
+        }
+
+        if (state.city === null && data.city !== null) {
+            state.city = data.city;
+        }
+
+        if (state.brand === null && data.brand !== null) {
+            state.brand = data.brand;
+        }
+
+        if (state.size === null && data.size !== null) {
+            state.size = data.size;
+        }
+
+        if (state.model === null && data.model !== null) {
+            state.model = data.model;
+        }
+
+        if (state.symptom === null && data.symptom !== null) {
+            state.symptom = data.symptom;
+        }
+
+        if (
+            state.displayFailure === null &&
+            data.displayFailure !== null
+        ) {
+            state.displayFailure = data.displayFailure;
+        }
+
+        if (
+            state.manipulated === null &&
+            data.manipulated !== null
+        ) {
+            state.manipulated = data.manipulated;
+        }
+
+        return state;
+    }
+
+    async answer(        state: ConversationState
+    ): Promise<string> {
+
+        const response = await this.client.responses.create({
+
+            model: "gpt-5.5",
+
+            input: [
+                {
+                    role: "system",
+                    content: `
+Eres ZENI, asistente virtual de ZENER Servicio Técnico.
+
+Reglas obligatorias:
+
+- Responde únicamente sobre reparación de televisores.
+- No inventes información.
+- No menciones servicios que ZENER no ofrece.
+- Sé breve, profesional y directo.
+- No saludes si la conversación ya está iniciada.
+`
+                },
+                {
+                    role: "user",
+                    content: `
+Información del cliente:
+
+Ciudad: ${state.city}
+Marca: ${state.brand}
+Tamaño: ${state.size}
+Modelo: ${state.model}
+Síntoma: ${state.symptom}
+
+Genera la respuesta final para el cliente.
+`
+                }
+            ]
+
+        });
+
+        return (
+            response.output_text?.trim() ||
+            "Muchas gracias por la información. En breve un asesor continuará con su atención."
+        );
 
     }
 
