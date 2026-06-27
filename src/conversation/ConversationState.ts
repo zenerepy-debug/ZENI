@@ -4,8 +4,6 @@ export interface ConversationState {
 
     city: string | null;
 
-    inCoverage: boolean | null;
-
     brand: string | null;
 
     size: string | null;
@@ -18,11 +16,9 @@ export interface ConversationState {
 
     manipulated: boolean | null;
 
-    qualified: boolean;
-
-    transferred: boolean;
-
     lastCustomerMessage: string;
+
+    conversationSummary: string;
 
     createdAt: number;
 
@@ -42,8 +38,6 @@ export function createConversationState(
 
         city: null,
 
-        inCoverage: null,
-
         brand: null,
 
         size: null,
@@ -56,11 +50,9 @@ export function createConversationState(
 
         manipulated: null,
 
-        qualified: false,
-
-        transferred: false,
-
         lastCustomerMessage: "",
+
+        conversationSummary: "",
 
         createdAt: now,
 

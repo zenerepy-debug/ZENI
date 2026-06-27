@@ -1,6 +1,5 @@
 import {
-    ConversationState,
-    createConversationState
+    ConversationState
 } from "./ConversationState";
 
 export class StateRepository {
@@ -8,34 +7,43 @@ export class StateRepository {
     private readonly conversations =
         new Map<string, ConversationState>();
 
-    get(phone: string): ConversationState {
+    get(
 
-        let state = this.conversations.get(phone);
+        phone: string
 
-        if (!state) {
+    ): ConversationState | undefined {
 
-            state = createConversationState(phone);
-
-            this.conversations.set(phone, state);
-
-        }
-
-        return state;
+        return this.conversations.get(phone);
 
     }
 
-    save(state: ConversationState): void {
+    save(
 
-        state.updatedAt = Date.now();
+        state: ConversationState
+
+    ): void {
 
         this.conversations.set(
+
             state.phone,
-            state
+
+            Object.freeze({
+
+                ...state,
+
+                updatedAt: Date.now()
+
+            })
+
         );
 
     }
 
-    clear(phone: string): void {
+    clear(
+
+        phone: string
+
+    ): void {
 
         this.conversations.delete(phone);
 

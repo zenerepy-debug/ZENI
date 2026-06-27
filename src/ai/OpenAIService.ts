@@ -1,148 +1,117 @@
 import OpenAI from "openai";
 import { ConversationState } from "../conversation/ConversationState";
 
-export class OpenAIService {
+export interface ConversationResult {
+    state: ConversationState;
+    reply: string;
+}
 
-    private client = new OpenAI({
+interface GPTResponse {
+    memory?: Partial<ConversationState>;
+    reply: string;
+}
+
+export class OpenAIService {
+    private readonly client = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
     });
 
-    async extract(
-        state: ConversationState,
+    async processConversation(
+        previousState: ConversationState,
         message: string
-    ): Promise<ConversationState> {
-
-        const response = await this.client.responses.create({
-
-            model: "gpt-5.5",
-
-            input: [
+    ): Promise<ConversationResult> {
+        const response = await this.client.chat.completions.create({
+            model: "gpt-4o-mini",
+            response_format: { type: "json_object" },
+            messages: [
                 {
                     role: "system",
                     content: `
-Extrae información del mensaje del cliente.
+# ENTRENAMIENTO DE ZENI
+Este documento representa el entrenamiento recibido por ZENI antes de comenzar a atender clientes de ZENER Servicio Técnico.
+No memorices frases. No sigas reglas literalmente.
+Comprende el conocimiento y utilízalo para razonar igual que lo haría un asesor humano.
+Tu objetivo es responder naturalmente utilizando el contexto completo de la conversación.
 
-Devuelve EXCLUSIVAMENTE un objeto JSON válido.
+------------------------------------------------------------
+# QUIÉN ERES
+Tu nombre es ZENI, el agente virtual de ZENER Servicio Técnico.
+Atiendes conversaciones por WhatsApp las 24 horas para calificar clientes para reparación de televisores.
+No intentas mantener conversaciones innecesarias, no actúas como un formulario ni haces preguntas en un orden fijo.
+Escuchas al cliente, comprendes errores ortográficos y recuerdas toda la conversación.
+Nunca vuelves a preguntar algo que ya sabes. Si el cliente cambia de tema o de TV, entiendes que es un nuevo caso.
 
-No inventes información.
+------------------------------------------------------------
+# TU TRABAJO
+Tu función consiste en obtener la información necesaria para determinar si ZENER puede atender el caso.
+No enseñas electrónica, no diagnosticas componentes, no recomiendas repuestos, talleres ni vendedores.
+Cuando el caso califica, obtienes la información faltante para derivarlo al técnico.
+Cuando no califica, respondes amablemente explicando el motivo sin cerrar el chat.
 
-Si un dato no existe devuelve null.
+------------------------------------------------------------
+# CONOCIMIENTO DEL NEGOCIO
+ZENER repara televisores exclusivamente a domicilio. No posee local físico.
+No recibe televisores del interior. No vende repuestos, placas, displays ni TVs. No compra TVs usadas.
+El técnico de ZENER es quien realiza los presupuestos y agenda las visitas posteriormente.
+ZENI nunca da presupuestos, nunca agenda visitas, ni promete horarios. Jamás digas "no damos presupuesto por whatsapp", solo deriva al técnico para que él lo dé.
 
-Formato:
+------------------------------------------------------------
+# COBERTURA
+ZENER trabaja únicamente dentro de estas ciudades (entiende errores ortográficos y abreviaciones):
+Asunción, Lambaré, Villa Elisa, Ñemby, San Antonio, Fernando de la Mora, Capiatá, San Lorenzo, Areguá, Luque, Limpio, Mariano Roque Alonso.
+Si está fuera de cobertura, descalifica amablemente explicando la zona de cobertura.
 
-{
-  "city": string|null,
-  "brand": string|null,
-  "size": string|null,
-  "model": string|null,
-  "symptom": string|null,
-  "displayFailure": boolean|null,
-  "manipulated": boolean|null
-}
+------------------------------------------------------------
+# SÍNTOMAS Y MANIPULACIÓN
+Si el síntoma corresponde a falla de DISPLAY (pantalla rota, quebrada, rajada, vidrio roto, golpe, manchas negras, líneas por golpe, pantalla estallada), el caso NO CALIFICA. Descalifica amablemente.
+Si el TV fue manipulado por el cliente ("ya lo abrí", "ya desarmé", "cambié unos leds"), el caso NO CALIFICA.
+Si la falla es de FUENTE, PLACA PRINCIPAL o ILUMINACIÓN LED (política: se cambian TODOS los LED, no solo el quemado), el caso CALIFICA para transferir.
+
+------------------------------------------------------------
+# INFORMACIÓN NECESARIA Y FILTROS RECOMENDADOS
+Necesitas: ciudad, síntoma, marca y tamaño exacto. Si no sabe marca/tamaño, solicita foto de la etiqueta del modelo.
+Filtro 1: Saludar (solo primer mensaje) y preguntar ciudad.
+Filtro 2: Preguntar síntoma antes de marca/tamaño para descartar display de inmediato.
+Filtro 3: Solicitar marca y tamaño.
+
+------------------------------------------------------------
+# FORMATO DE SALIDA OBLIGATORIO
+Debes responder ESTRICTAMENTE con un objeto JSON que contenga estas dos llaves:
+1. "reply": El mensaje de texto que se le enviará al cliente en WhatsApp. Sé humano y natural. Al transferir di: "Voy a derivar tu caso ahora al técnico asignado a tu caso, te va escribir desde su número."
+2. "memory": Un objeto que actualice los campos del ConversationState basados en lo que descubriste en este mensaje:
+   - "city": string o null
+   - "brand": string o null
+   - "size": string o null
+   - "model": string o null
+   - "symptom": string o null
+   - "displayFailure": boolean o null (true si es falla de display)
+   - "manipulated": boolean o null (true si fue manipulado por el cliente)
 `
+                },
+                {
+                    role: "system",
+                    content: `Memoria previa actual: ${JSON.stringify(previousState)}`
                 },
                 {
                     role: "user",
                     content: message
                 }
             ]
-
         });
 
-        const text =
-            response.output_text ??
-            "{}";
+        const content = response.choices[0].message.content || "{}";
+        const parsed: GPTResponse = JSON.parse(content);
 
-        let data: any = {};
+        const updatedState: ConversationState = {
+            ...previousState,
+            ...parsed.memory,
+            lastCustomerMessage: message,
+            updatedAt: Date.now()
+        };
 
-        try {
-            data = JSON.parse(text);
-        } catch {
-            return state;
-        }
-
-        if (state.city === null && data.city !== null) {
-            state.city = data.city;
-        }
-
-        if (state.brand === null && data.brand !== null) {
-            state.brand = data.brand;
-        }
-
-        if (state.size === null && data.size !== null) {
-            state.size = data.size;
-        }
-
-        if (state.model === null && data.model !== null) {
-            state.model = data.model;
-        }
-
-        if (state.symptom === null && data.symptom !== null) {
-            state.symptom = data.symptom;
-        }
-
-        if (
-            state.displayFailure === null &&
-            data.displayFailure !== null
-        ) {
-            state.displayFailure = data.displayFailure;
-        }
-
-        if (
-            state.manipulated === null &&
-            data.manipulated !== null
-        ) {
-            state.manipulated = data.manipulated;
-        }
-
-        return state;
+        return {
+            state: updatedState,
+            reply: parsed.reply
+        };
     }
-
-    async answer(        state: ConversationState
-    ): Promise<string> {
-
-        const response = await this.client.responses.create({
-
-            model: "gpt-5.5",
-
-            input: [
-                {
-                    role: "system",
-                    content: `
-Eres ZENI, asistente virtual de ZENER Servicio Técnico.
-
-Reglas obligatorias:
-
-- Responde únicamente sobre reparación de televisores.
-- No inventes información.
-- No menciones servicios que ZENER no ofrece.
-- Sé breve, profesional y directo.
-- No saludes si la conversación ya está iniciada.
-`
-                },
-                {
-                    role: "user",
-                    content: `
-Información del cliente:
-
-Ciudad: ${state.city}
-Marca: ${state.brand}
-Tamaño: ${state.size}
-Modelo: ${state.model}
-Síntoma: ${state.symptom}
-
-Genera la respuesta final para el cliente.
-`
-                }
-            ]
-
-        });
-
-        return (
-            response.output_text?.trim() ||
-            "Muchas gracias por la información. En breve un asesor continuará con su atención."
-        );
-
-    }
-
 }
