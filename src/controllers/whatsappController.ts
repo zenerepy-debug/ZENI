@@ -1,14 +1,13 @@
 import { Request, Response } from 'express';
 import { processZenerMessage, WhatsAppResponsePayload } from '../services/zenerEngine.js';
 
-// 1. Verificación del Webhook para Meta (Handshake)
+// 1. Verificación del Webhook para Meta (Handshake) con Token Fijo Definitivo
 export const verifyWebhook = (req: Request, res: Response): void => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  // Reemplaza "ZENER_VERIFY_TOKEN" con el token de verificación que configures en Meta
-  const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'ZENER_VERIFY_TOKEN';
+  const VERIFY_TOKEN = 'ZeniToken2026Definitivo';
 
   if (mode && token) {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -53,7 +52,7 @@ export const handleWebhookMessage = async (req: Request, res: Response): Promise
       }
     }
 
-    // Si no hay texto ni interacción válida, ignoramos y respondemos OK para evitar bucles
+    // Si no hay texto ni interacción válida, ignoramos para evitar bucles
     if (!textInput && !interactiveId) {
       res.sendStatus(200);
       return;
@@ -68,16 +67,17 @@ export const handleWebhookMessage = async (req: Request, res: Response): Promise
     res.sendStatus(200);
   } catch (error: any) {
     console.error('Error crítico en el webhook controlador:', error.message);
-    res.sendStatus(200); // Siempre respondemos 200 a Meta para evitar suspensiones de webhook
+    res.sendStatus(200); // Siempre respondemos 200 a Meta para mantener activo el canal
   }
 };
+
 // 3. Función auxiliar para formatear y despachar los JSON a Meta Cloud API
 async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload): Promise<void> {
-  const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-  const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+  const WHATSAPP_TOKEN = process.env.META_ACCESS_TOKEN;
+  const PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID;
 
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
-    console.error('Error: Faltan variables de entorno WHATSAPP_TOKEN o PHONE_NUMBER_ID.');
+    console.error('Error: Faltan variables de entorno META_ACCESS_TOKEN o META_PHONE_NUMBER_ID.');
     return;
   }
 
@@ -101,7 +101,7 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
           type: 'reply',
           reply: {
             id: `btn_${index}_${btnText.toLowerCase().replace(/\s+/g, '_')}`,
-            title: btnText // Límite estricto de Meta: Máximo 24 caracteres
+            title: btnText
           }
         }))
       }
@@ -112,12 +112,12 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
       type: 'list',
       body: { text: payload.text },
       action: {
-        button: payload.listTitle || 'Seleccionar', // Título del botón desplegable
+        button: payload.listTitle || 'Seleccionar',
         sections: payload.listSections.map(sec => ({
           title: sec.title,
           rows: sec.rows.map(row => ({
             id: row.id,
-            title: row.title, // Título corto enviado al botón (< 24 caracteres)
+            title: row.title,
             description: row.description || ''
           }))
         }))
