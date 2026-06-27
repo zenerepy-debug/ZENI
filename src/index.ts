@@ -33,7 +33,6 @@ app.post("/webhook", async (req, res) => {
 
         let customerMessage = "";
 
-        // Captura e identificación multimedia para no romper el flujo de la IA
         if (message.text?.body) {
             customerMessage = message.text.body;
         } else if (message.type === "image") {
@@ -46,10 +45,9 @@ app.post("/webhook", async (req, res) => {
 
         const phone = message.from;
         
-        // Ejecución en el motor cognitivo de OpenAI
         const reply = await engine.process(phone, customerMessage);
 
-        // 1. Envío de la respuesta directa al cliente en WhatsApp
+        // 1. Envío de respuesta al cliente
         await axios.post(
             `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
             {
@@ -62,39 +60,36 @@ app.post("/webhook", async (req, res) => {
             }
         );
 
-        // 2. Monitoreo de Calificación y Transferencia al Técnico
+        // 2. Monitoreo de Transferencia por Contexto Histórico Estables
         const currentState = engine.repository.get(phone);
         
-        if (
-            currentState &&
-            currentState.city &&
-            currentState.brand &&
-            currentState.symptom &&
-            currentState.displayFailure === false &&
-            currentState.manipulated === false
-        ) {
+        // Si el estado tiene ciudad y marca fijas guardadas, y la respuesta generó la transferencia interna
+        if (currentState && currentState.city && currentState.brand) {
+            // El motor detecta la condición de éxito de la IA
             const numeroTecnico = "595981121588";
             const enlaceWhatsapp = `https://wa.me{phone}`;
             
-            const mensajeAlTecnico = `⚠️ *NUEVO CLIENTE CALIFICADO - ZENI* \n\n` +
-                                     `• *Cliente:* ${enlaceWhatsapp}\n` +
-                                     `• *Ciudad:* ${currentState.city}\n` +
-                                     `• *Marca:* ${currentState.brand}\n` +
-                                     `• *Tamaño:* ${currentState.size || "No especificado"}\n` +
-                                     `• *Síntoma:* ${currentState.symptom}`;
+            // Solo notificamos al técnico si ya completamos la validación global
+            if (currentState.symptom && reply.includes("derivado al técnico") || reply.includes("derivará su caso")) {
+                const mensajeAlTecnico = `⚠️ *NUEVO CLIENTE CALIFICADO - ZENI* \n\n` +
+                                         `• *Cliente:* ${enlaceWhatsapp}\n` +
+                                         `• *Ciudad:* ${currentState.city}\n` +
+                                         `• *Marca:* ${currentState.brand}\n` +
+                                         `• *Tamaño:* ${currentState.size || "No especificado"}\n` +
+                                         `• *Síntoma:* ${currentState.symptom || "Ver historial de chat"}`;
 
-            // Transferencia del bot hacia el número del técnico B
-            await axios.post(
-                `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
-                {
-                    messaging_product: "whatsapp",
-                    to: numeroTecnico,
-                    text: { body: mensajeAlTecnico }
-                },
-                {
-                    headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` }
-                }
-            );
+                await axios.post(
+                    `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
+                    {
+                        messaging_product: "whatsapp",
+                        to: numeroTecnico,
+                        text: { body: mensajeAlTecnico }
+                    },
+                    {
+                        headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` }
+                    }
+                );
+            }
         }
 
     } catch (error) {
