@@ -86,7 +86,6 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
             }
         ];
 
-        // Se inyecta el historial completo de la conversación
         for (const msg of previousState.history) {
             conversationMessages.push({
                 role: msg.role,
@@ -94,7 +93,6 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
             });
         }
 
-        // Mensaje actual del cliente
         conversationMessages.push({
             role: "user",
             content: message
@@ -105,18 +103,15 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
             messages: conversationMessages
         });
 
-        const replyText = response.choices[0].message.content || "";
+        const replyText = response.choices.message.content || "";
 
-        // EVALUACIÓN COGNITIVA INTERNA DE VARIABLES PARA NO PERDER LA MEMORIA
-        // La IA analiza el texto del cliente para extraer datos sin pisar o borrar los anteriores con nulos
         let currentCity = previousState.city;
         let currentBrand = previousState.brand;
         let currentSymptom = previousState.symptom;
 
         const lowerMessage = message.toLowerCase();
-        const ciudades Cobertura = ["asuncion", "lambare", "villa elisa", "ñemby", "san antonio", "fernando de la mora", "capiata", "san lorenzo", "aregua", "luque", "limpio", "mariano roque alonso"];
+        const ciudadesCobertura = ["asuncion", "lambare", "villa elisa", "ñemby", "san antonio", "fernando de la mora", "capiata", "san lorenzo", "aregua", "luque", "limpio", "mariano roque alonso"];
         
-        // Si el estado de la ciudad estaba vacío, buscamos si el cliente la mencionó de forma implícita o explícita
         if (!currentCity) {
             for (const ciudad of ciudadesCobertura) {
                 if (lowerMessage.includes(ciudad) || lowerMessage.includes(ciudad.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
@@ -126,7 +121,6 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
             }
         }
 
-        // Lo mismo para la marca
         if (!currentBrand) {
             const marcas = ["samsung", "lg", "sony", "panasonic", "philips", "tcl", "hisense", "aoc", "jvc"];
             for (const marca of marcas) {
@@ -137,7 +131,6 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
             }
         }
 
-        // Guardamos el síntoma si se describe un problema
         if (!currentSymptom && (lowerMessage.includes("prende") || lowerMessage.includes("pantalla") || lowerMessage.includes("imagen") || lowerMessage.includes("luz") || lowerMessage.includes("sonido"))) {
             currentSymptom = message;
         }
