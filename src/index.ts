@@ -24,33 +24,34 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-    res.sendStatus(200); // Respuesta inmediata a Meta
+    res.sendStatus(200); // Respuesta inmediata para evitar reintentos de Meta
 
     try {
-        const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+        const changes = req.body?.entry?.[0]?.changes?.[0]?.value;
+        const message = changes?.messages?.[0];
         if (!message) return;
 
         let customerMessage = "";
 
-        // Identificar el tipo de mensaje entrante sin bloquear el flujo
+        // Captura multimedia inteligente sin detener la ejecución
         if (message.text?.body) {
             customerMessage = message.text.body;
         } else if (message.type === "image") {
-            customerMessage = "[El cliente envió una foto de la etiqueta de su televisor o del equipo]";
+            customerMessage = "[El cliente envió una foto de la etiqueta del modelo o del televisor]";
         } else if (message.type === "audio") {
-            customerMessage = "[El cliente envió un mensaje de audio]";
+            customerMessage = "[El cliente envió un mensaje de voz o audio]";
         } else {
             customerMessage = "[El cliente envió un archivo multimedia no soportado]";
         }
 
         const phone = message.from;
         
-        // Procesar la conversación con el único motor lógico (OpenAI)
+        // Ejecución en el motor lógico de OpenAI
         const reply = await engine.process(phone, customerMessage);
 
-        // 1. Enviar respuesta al cliente en WhatsApp
+        // 1. Despacho del mensaje de respuesta al cliente de WhatsApp
         await axios.post(
-            `https://facebook.com{process.env.PORT === "3000" ? process.env.META_PHONE_NUMBER_ID : process.env.META_PHONE_NUMBER_ID}/messages`,
+            `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
             {
                 messaging_product: "whatsapp",
                 to: phone,
@@ -61,16 +62,15 @@ app.post("/webhook", async (req, res) => {
             }
         );
 
-        // 2. LÓGICA DE DETECCIÓN DE CALIFICACIÓN Y ENVÍO AL TÉCNICO
-        // Volvemos a consultar el estado guardado por el motor para saber si ya calificó
+        // 2. Verificación de calificación en caliente para alertar al técnico
         const currentState = (engine as any).repository.get(phone);
         
         if (
-            currentState && 
-            currentState.city && 
-            currentState.brand && 
-            currentState.symptom && 
-            currentState.displayFailure === false && 
+            currentState &&
+            currentState.city &&
+            currentState.brand &&
+            currentState.symptom &&
+            currentState.displayFailure === false &&
             currentState.manipulated === false
         ) {
             const numeroTecnico = "595981121588";
@@ -83,7 +83,6 @@ app.post("/webhook", async (req, res) => {
                                      `• *Tamaño:* ${currentState.size || "No especificado"}\n` +
                                      `• *Síntoma:* ${currentState.symptom}`;
 
-            // Enviar alerta interna al técnico desde el número del bot
             await axios.post(
                 `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
                 {
@@ -98,11 +97,11 @@ app.post("/webhook", async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Error en webhook:", error);
+        console.error("Error operativo en el webhook:", error);
     }
 });
 
 const PORT = Number(process.env.PORT ?? 3000);
 app.listen(PORT, () => {
-    console.log(`🚀 ZENI iniciado en puerto ${PORT}`);
+    console.log(`🚀 ZENI operativo en puerto ${PORT}`);
 });

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { ConversationState } from "../conversation/ConversationState";
+import { ConversationState, ChatMessage } from "../conversation/ConversationState";
 
 export interface ConversationResult {
     state: ConversationState;
@@ -20,97 +20,91 @@ export class OpenAIService {
         previousState: ConversationState,
         message: string
     ): Promise<ConversationResult> {
+        
+        // Alimentamos el historial nativo de OpenAI con los mensajes previos
+        const conversationMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+            {
+                role: "system",
+                content: `
+# ENTRENAMIENTO DE ZENI
+Eres ZENI, el asistente cognitivo humano de ZENER Servicio Técnico. Tu objetivo es filtrar y calificar clientes para reparación de televisores las 24/7.
+No actúas como un formulario. Piensa y deduzca de forma lógica basándote en la conversación completa.
+
+# CONOCIMIENTO DEL NEGOCIO
+- Cobertura (Estricta): Asunción, Lambaré, Villa Elisa, Ñemby, San Antonio, Fernando de la Mora, Capiatá, San Lorenzo, Areguá, Luque, Limpio, Mariano Roque Alonso. (Reconoce errores ortográficos). Si está fuera, descalifica amablemente.
+- Fallas de Display (Pantalla rota, golpeada, rota, rajada, manchas negras fijas): NO CALIFICA. Descalifica amablemente y cierra el caso (sin cerrar el chat).
+- Manipulación por el cliente (Abierto, desarmado, intento de reparación propia): NO CALIFICA.
+- Fallas de Fuente, Placa o Iluminación LED (Política: se cambian TODOS los LED, no tiras sueltas): CALIFICA para transferir.
+- ZENI nunca da presupuestos ni agenda visitas. No digas "no damos presupuesto por whatsapp", solo deriva diciendo: "Voy a derivar tu caso ahora al técnico asignado a tu caso, te va escribir desde su número."
+
+# FLUJO RECOMENDADO
+1. Saludo (solo primer mensaje) y consultar ciudad.
+2. Consultar síntoma o falla (para descartar display antes que marca o tamaño).
+3. Consultar marca y tamaño exacto (si no sabe, pedir foto de la etiqueta trasera).
+
+# FORMATO DE RESPUESTA OBLIGATORIO (JSON)
+Debes devolver única y estrictamente un objeto JSON con esta estructura:
+{
+  "reply": "Tu respuesta humana y empática en texto para el WhatsApp del cliente.",
+  "memory": {
+    "city": "nombre de la ciudad identificada o null",
+    "brand": "marca identificada o null",
+    "size": "tamaño identificado o null",
+    "model": "modelo si lo dio o null",
+    "symptom": "resumen del síntoma o null",
+    "displayFailure": true/false/null,
+    "manipulated": true/false/null
+  }
+}
+`
+            }
+        ];
+
+        // Añadir los mensajes previos que se guardaron en la memoria del cliente
+        for (const msg of previousState.history) {
+            conversationMessages.push({
+                role: msg.role,
+                content: msg.content
+            });
+        }
+
+        // Añadir el mensaje que acaba de enviar el cliente en este momento
+        conversationMessages.push({
+            role: "user",
+            content: message
+        });
+
         const response = await this.client.chat.completions.create({
             model: "gpt-4o-mini",
             response_format: { type: "json_object" },
-            messages: [
-                {
-                    role: "system",
-                    content: `
-# ENTRENAMIENTO DE ZENI
-Este documento representa el entrenamiento recibido por ZENI antes de comenzar a atender clientes de ZENER Servicio Técnico.
-No memorices frases. No sigas reglas literalmente.
-Comprende el conocimiento y utilízalo para razonar igual que lo haría un asesor humano.
-Tu objetivo es responder naturalmente utilizando el contexto completo de la conversación.
-
-------------------------------------------------------------
-# QUIÉN ERES
-Tu nombre es ZENI, el agente virtual de ZENER Servicio Técnico.
-Atiendes conversaciones por WhatsApp las 24 horas para calificar clientes para reparación de televisores.
-No intentas mantener conversaciones innecesarias, no actúas como un formulario ni haces preguntas en un orden fijo.
-Escuchas al cliente, comprendes errores ortográficos y recuerdas toda la conversación.
-Nunca vuelves a preguntar algo que ya sabes. Si el cliente cambia de tema o de TV, entiendes que es un nuevo caso.
-
-------------------------------------------------------------
-# TU TRABAJO
-Tu función consiste en obtener la información necesaria para determinar si ZENER puede atender el caso.
-No enseñas electrónica, no diagnosticas componentes, no recomiendas repuestos, talleres ni vendedores.
-Cuando el caso califica, obtienes la información faltante para derivarlo al técnico.
-Cuando no califica, respondes amablemente explicando el motivo sin cerrar el chat.
-
-------------------------------------------------------------
-# CONOCIMIENTO DEL NEGOCIO
-ZENER repara televisores exclusivamente a domicilio. No posee local físico.
-No recibe televisores del interior. No vende repuestos, placas, displays ni TVs. No compra TVs usadas.
-El técnico de ZENER es quien realiza los presupuestos y agenda las visitas posteriormente.
-ZENI nunca da presupuestos, nunca agenda visitas, ni promete horarios. Jamás digas "no damos presupuesto por whatsapp", solo deriva al técnico para que él lo dé.
-
-------------------------------------------------------------
-# COBERTURA
-ZENER trabaja únicamente dentro de estas ciudades (entiende errores ortográficos y abreviaciones):
-Asunción, Lambaré, Villa Elisa, Ñemby, San Antonio, Fernando de la Mora, Capiatá, San Lorenzo, Areguá, Luque, Limpio, Mariano Roque Alonso.
-Si está fuera de cobertura, descalifica amablemente explicando la zona de cobertura.
-
-------------------------------------------------------------
-# SÍNTOMAS Y MANIPULACIÓN
-Si el síntoma corresponde a falla de DISPLAY (pantalla rota, quebrada, rajada, vidrio roto, golpe, manchas negras, líneas por golpe, pantalla estallada), el caso NO CALIFICA. Descalifica amablemente.
-Si el TV fue manipulado por el cliente ("ya lo abrí", "ya desarmé", "cambié unos leds"), el caso NO CALIFICA.
-Si la falla es de FUENTE, PLACA PRINCIPAL o ILUMINACIÓN LED (política: se cambian TODOS los LED, no solo el quemado), el caso CALIFICA para transferir.
-
-------------------------------------------------------------
-# INFORMACIÓN NECESARIA Y FILTROS RECOMENDADOS
-Necesitas: ciudad, síntoma, marca y tamaño exacto. Si no sabe marca/tamaño, solicita foto de la etiqueta del modelo.
-Filtro 1: Saludar (solo primer mensaje) y preguntar ciudad.
-Filtro 2: Preguntar síntoma antes de marca/tamaño para descartar display de inmediato.
-Filtro 3: Solicitar marca y tamaño.
-
-------------------------------------------------------------
-# FORMATO DE SALIDA OBLIGATORIO
-Debes responder ESTRICTAMENTE con un objeto JSON que contenga estas dos llaves:
-1. "reply": El mensaje de texto que se le enviará al cliente en WhatsApp. Sé humano y natural. Al transferir di: "Voy a derivar tu caso ahora al técnico asignado a tu caso, te va escribir desde su número."
-2. "memory": Un objeto que contenga los campos del estado. Mantén los valores detectados previamente si el cliente no los ha cambiado:
-   - "city": string o null
-   - "brand": string o null
-   - "size": string o null
-   - "model": string o null
-   - "symptom": string o null
-   - "displayFailure": boolean o null (true si es falla de display)
-   - "manipulated": boolean o null (true si fue manipulado por el cliente)
-`
-                },
-                {
-                    role: "system",
-                    content: `Memoria previa actual: ${JSON.stringify(previousState)}`
-                },
-                {
-                    role: "user",
-                    content: message
-                }
-            ]
+            messages: conversationMessages
         });
 
-        const content = response.choices.message.content || "{}";
+        const content = response.choices[0].message.content || "{}";
         const parsed: GPTResponse = JSON.parse(content);
+
+        // Mantenemos la consistencia de los datos históricos para que no se borren por valores vacíos
+        const updatedMemory = {
+            city: parsed.memory?.city || previousState.city,
+            brand: parsed.memory?.brand || previousState.brand,
+            size: parsed.memory?.size || previousState.size,
+            model: parsed.memory?.model || previousState.model,
+            symptom: parsed.memory?.symptom || previousState.symptom,
+            displayFailure: parsed.memory?.displayFailure !== undefined && parsed.memory?.displayFailure !== null ? parsed.memory.displayFailure : previousState.displayFailure,
+            manipulated: parsed.memory?.manipulated !== undefined && parsed.memory?.manipulated !== null ? parsed.memory.manipulated : previousState.manipulated,
+        };
+
+        // Guardamos de forma literal este intercambio en el historial de chat de la variable
+        const updatedHistory: ChatMessage[] = [
+            ...previousState.history,
+            { role: "user", content: message },
+            { role: "assistant", content: parsed.reply }
+        ];
 
         const updatedState: ConversationState = {
             ...previousState,
-            city: parsed.memory?.city !== undefined && parsed.memory?.city !== null ? parsed.memory.city : previousState.city,
-            brand: parsed.memory?.brand !== undefined && parsed.memory?.brand !== null ? parsed.memory.brand : previousState.brand,
-            size: parsed.memory?.size !== undefined && parsed.memory?.size !== null ? parsed.memory.size : previousState.size,
-            model: parsed.memory?.model !== undefined && parsed.memory?.model !== null ? parsed.memory.model : previousState.model,
-            symptom: parsed.memory?.symptom !== undefined && parsed.memory?.symptom !== null ? parsed.memory.symptom : previousState.symptom,
-            displayFailure: parsed.memory?.displayFailure !== undefined && parsed.memory?.displayFailure !== null ? parsed.memory.displayFailure : previousState.displayFailure,
-            manipulated: parsed.memory?.manipulated !== undefined && parsed.memory?.manipulated !== null ? parsed.memory.manipulated : previousState.manipulated,
+            ...updatedMemory,
+            history: updatedHistory.slice(-20), // Mantenemos los últimos 20 mensajes para optimizar costos de tokens
             lastCustomerMessage: message,
             updatedAt: Date.now()
         };
