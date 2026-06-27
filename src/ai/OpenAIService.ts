@@ -78,7 +78,7 @@ Filtro 3: Solicitar marca y tamaño.
 # FORMATO DE SALIDA OBLIGATORIO
 Debes responder ESTRICTAMENTE con un objeto JSON que contenga estas dos llaves:
 1. "reply": El mensaje de texto que se le enviará al cliente en WhatsApp. Sé humano y natural. Al transferir di: "Voy a derivar tu caso ahora al técnico asignado a tu caso, te va escribir desde su número."
-2. "memory": Un objeto que actualice los campos del ConversationState basados en lo que descubriste en este mensaje:
+2. "memory": Un objeto que contenga los campos del estado. Mantén los valores detectados previamente si el cliente no los ha cambiado:
    - "city": string o null
    - "brand": string o null
    - "size": string o null
@@ -99,12 +99,18 @@ Debes responder ESTRICTAMENTE con un objeto JSON que contenga estas dos llaves:
             ]
         });
 
-        const content = response.choices[0].message.content || "{}";
+        const content = response.choices.message.content || "{}";
         const parsed: GPTResponse = JSON.parse(content);
 
         const updatedState: ConversationState = {
             ...previousState,
-            ...parsed.memory,
+            city: parsed.memory?.city !== undefined && parsed.memory?.city !== null ? parsed.memory.city : previousState.city,
+            brand: parsed.memory?.brand !== undefined && parsed.memory?.brand !== null ? parsed.memory.brand : previousState.brand,
+            size: parsed.memory?.size !== undefined && parsed.memory?.size !== null ? parsed.memory.size : previousState.size,
+            model: parsed.memory?.model !== undefined && parsed.memory?.model !== null ? parsed.memory.model : previousState.model,
+            symptom: parsed.memory?.symptom !== undefined && parsed.memory?.symptom !== null ? parsed.memory.symptom : previousState.symptom,
+            displayFailure: parsed.memory?.displayFailure !== undefined && parsed.memory?.displayFailure !== null ? parsed.memory.displayFailure : previousState.displayFailure,
+            manipulated: parsed.memory?.manipulated !== undefined && parsed.memory?.manipulated !== null ? parsed.memory.manipulated : previousState.manipulated,
             lastCustomerMessage: message,
             updatedAt: Date.now()
         };
