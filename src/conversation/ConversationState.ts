@@ -14,7 +14,7 @@ export interface ConversationState {
     manipulated: boolean | null;
     lastCustomerMessage: string;
     conversationSummary: string;
-    history: ChatMessage[]; // Historial de chat real para la IA
+    history: ChatMessage[];
     createdAt: number;
     updatedAt: number;
 }

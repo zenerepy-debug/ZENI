@@ -24,7 +24,7 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-    res.sendStatus(200); // Respuesta inmediata para evitar reintentos de Meta
+    res.sendStatus(200);
 
     try {
         const changes = req.body?.entry?.[0]?.changes?.[0]?.value;
@@ -33,7 +33,7 @@ app.post("/webhook", async (req, res) => {
 
         let customerMessage = "";
 
-        // Captura multimedia inteligente sin detener la ejecución
+        // Captura e identificación multimedia para no romper el flujo de la IA
         if (message.text?.body) {
             customerMessage = message.text.body;
         } else if (message.type === "image") {
@@ -46,10 +46,10 @@ app.post("/webhook", async (req, res) => {
 
         const phone = message.from;
         
-        // Ejecución en el motor lógico de OpenAI
+        // Ejecución en el motor cognitivo de OpenAI
         const reply = await engine.process(phone, customerMessage);
 
-        // 1. Despacho del mensaje de respuesta al cliente de WhatsApp
+        // 1. Envío de la respuesta directa al cliente en WhatsApp
         await axios.post(
             `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
             {
@@ -62,8 +62,8 @@ app.post("/webhook", async (req, res) => {
             }
         );
 
-        // 2. Verificación de calificación en caliente para alertar al técnico
-        const currentState = (engine as any).repository.get(phone);
+        // 2. Monitoreo de Calificación y Transferencia al Técnico
+        const currentState = engine.repository.get(phone);
         
         if (
             currentState &&
@@ -83,6 +83,7 @@ app.post("/webhook", async (req, res) => {
                                      `• *Tamaño:* ${currentState.size || "No especificado"}\n` +
                                      `• *Síntoma:* ${currentState.symptom}`;
 
+            // Transferencia del bot hacia el número del técnico B
             await axios.post(
                 `https://facebook.com{process.env.META_PHONE_NUMBER_ID}/messages`,
                 {
@@ -97,11 +98,11 @@ app.post("/webhook", async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Error operativo en el webhook:", error);
+        console.error("Error en la operación del webhook:", error);
     }
 });
 
 const PORT = Number(process.env.PORT ?? 3000);
 app.listen(PORT, () => {
-    console.log(`🚀 ZENI operativo en puerto ${PORT}`);
+    console.log(`🚀 ZENI iniciado y operativo en puerto ${PORT}`);
 });
