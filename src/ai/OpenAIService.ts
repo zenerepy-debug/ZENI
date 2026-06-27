@@ -81,11 +81,13 @@ El agente solo debe volver a responder si el cliente menciona otro caso diferent
 # DERIVACIÓN Y REGLA DE TRANSFERENCIA
 ZENI puede identificarse como agente virtual si es necesario o si el cliente pregunta. Pero a la hora de transferir es preferible que no diga te transfiero con un humano, es mejor decir: "Voy a derivar tu caso ahora al técnico asignado a tu caso, te va escribir desde su número."
 
-Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciudad, Marca, Tamaño y Síntoma válido (fuente, placa o leds), y el caso CUMPLE con los requisitos para ser transferido al técnico, debes agregar obligatoriamente la etiqueta oculta [ACCION:TRANSFERIR] al final de tu respuesta de texto.
+# COMPORTAMIENTO TECNICO DE COGNICION
+Lee atentamente toda la conversacion previa. Si consideras que el cliente ya proporcionó los datos válidos para calificar (Ciudad dentro de la cobertura, Marca, Tamaño y Síntoma de placa/fuente/leds sin manipulaciones) y es momento de derivarlo al técnico, incluye de forma obligatoria la frase exacta "derivado al técnico" en tu respuesta.
 `
             }
         ];
 
+        // Inyección transparente de la conversación completa
         for (const msg of previousState.history) {
             conversationMessages.push({
                 role: msg.role,
@@ -105,51 +107,18 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
 
         const replyText = response.choices.message.content || "";
 
-        let currentCity = previousState.city;
-        let currentBrand = previousState.brand;
-        let currentSymptom = previousState.symptom;
-
-        const lowerMessage = message.toLowerCase();
-        const ciudadesCobertura = ["asuncion", "lambare", "villa elisa", "ñemby", "san antonio", "fernando de la mora", "capiata", "san lorenzo", "aregua", "luque", "limpio", "mariano roque alonso"];
-        
-        if (!currentCity) {
-            for (const ciudad of ciudadesCobertura) {
-                if (lowerMessage.includes(ciudad) || lowerMessage.includes(ciudad.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
-                    currentCity = ciudad.toUpperCase();
-                    break;
-                }
-            }
-        }
-
-        if (!currentBrand) {
-            const marcas = ["samsung", "lg", "sony", "panasonic", "philips", "tcl", "hisense", "aoc", "jvc"];
-            for (const marca of marcas) {
-                if (lowerMessage.includes(marca)) {
-                    currentBrand = marca.toUpperCase();
-                    break;
-                }
-            }
-        }
-
-        if (!currentSymptom && (lowerMessage.includes("prende") || lowerMessage.includes("pantalla") || lowerMessage.includes("imagen") || lowerMessage.includes("luz") || lowerMessage.includes("sonido"))) {
-            currentSymptom = message;
-        }
-
-        const isTransfer = replyText.includes("[ACCION:TRANSFERIR]");
-        const cleanReply = replyText.replace("[ACCION:TRANSFERIR]", "").trim();
-
         const updatedHistory: ChatMessage[] = [
             ...previousState.history,
             { role: "user", content: message },
-            { role: "assistant", content: cleanReply }
+            { role: "assistant", content: replyText }
         ];
 
+        // El estado guarda únicamente el historial de chat literal y datos básicos del flujo
         const updatedState: ConversationState = {
             ...previousState,
-            city: currentCity,
-            brand: currentBrand,
-            symptom: currentSymptom,
-            displayFailure: isTransfer ? false : previousState.displayFailure,
+            city: previousState.city || "CONVERSACION_EN_CURSO",
+            brand: previousState.brand || "CONVERSACION_EN_CURSO",
+            symptom: previousState.symptom || "CONVERSACION_EN_CURSO",
             history: updatedHistory.slice(-20),
             lastCustomerMessage: message,
             updatedAt: Date.now()
@@ -157,7 +126,7 @@ Si consideras que de acuerdo al historial el cliente ya ha proporcionado la Ciud
 
         return {
             state: updatedState,
-            reply: cleanReply
+            reply: replyText
         };
     }
 }
