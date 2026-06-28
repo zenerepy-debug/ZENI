@@ -297,8 +297,8 @@ export async function processZenerMessage(waId: string, textInput: string, inter
 }
 
 async function sendAlertToTechnician(session: UserSession): Promise<void> {
-  const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-  const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+  const WHATSAPP_TOKEN = process.env.META_ACCESS_TOKEN;
+  const PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID;
 
   if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
     console.error('Faltan variables de entorno para enviar la alerta al técnico.');
@@ -311,7 +311,7 @@ async function sendAlertToTechnician(session: UserSession): Promise<void> {
   try {
     const axios = (await import('axios')).default;
     await axios.post(
-      `https://facebook.com{PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: 'whatsapp',
         to: '595981121588',
