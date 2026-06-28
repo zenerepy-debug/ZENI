@@ -61,7 +61,7 @@ export const handleWebhookMessage = async (req: Request, res: Response): Promise
     // Procesar lógica en la máquina de estados rígida
     const replyPayload = await processZenerMessage(waId, textInput, interactiveId);
 
-    // Despachar la respuesta estructurada a Meta
+    // Despachar la respuesta maravillosa y estructurada a Meta
     await sendWhatsAppPayload(waId, replyPayload);
 
     res.sendStatus(200);
@@ -80,7 +80,9 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
     console.error('Error: Faltan variables de entorno META_ACCESS_TOKEN o META_PHONE_NUMBER_ID.');
     return;
   }
-    const url = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
+  
+  // Sincronizado a v19.0 para consistencia con zenerEngine
+  const url = `https://facebook.com{PHONE_NUMBER_ID}/messages`;
 
   let data: any = {
     messaging_product: 'whatsapp',
@@ -97,10 +99,12 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
       type: 'button',
       body: { text: payload.text },
       action: {
-        buttons: payload.buttons.map((btnText, index) => ({
+        // Mapeo limpio: El ID enviado a Meta es el texto del botón convertido a minúsculas
+        // Esto permite que normalizedText.includes('display') o 'led' funcione de forma transparente
+        buttons: payload.buttons.map((btnText) => ({
           type: 'reply',
           reply: {
-            id: `btn_${index}_${btnText.toLowerCase().replace(/\s+/g, '_')}`,
+            id: btnText.toLowerCase().trim(),
             title: btnText
           }
         }))

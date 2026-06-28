@@ -3,7 +3,7 @@ import { ZenerState, UserSession } from '../types/zener.js';
 // Base de datos temporal en memoria para las sesiones de los clientes
 const sessions = new Map<string, UserSession>();
 
-// Mensajes oficiales del sistema Zener
+// Mensajes oficiales del sistema Zener sanitizados y corregidos
 export const TEXTO_RECHAZO_COBERTURA = `Lo sentimos, tu ubicación está fuera de nuestra zona de cobertura. Brindamos servicio técnico exclusivo a domicilio únicamente dentro de las ciudades que figuran en nuestra lista. ¡Gracias por tu contacto!`;
 
 export const TEXTO_RECHAZO_DISPLAY = `Analizando el síntoma seleccionado, tu televisor presenta una falla de display (pantalla). Por razones técnicas y de costo, no realizamos cambios ni reparaciones de pantallas. Si deseas cotizar la reparación de OTRO televisor diferente, escribe la palabra Inicio para reiniciar el formulario. ¡Gracias por tu contacto!`;
@@ -28,6 +28,7 @@ export interface WhatsAppResponsePayload {
   listTitle?: string;
   listSections?: { title: string; rows: { id: string; title: string; description?: string }[] }[];
 }
+
 export async function processZenerMessage(waId: string, textInput: string, interactiveId?: string): Promise<WhatsAppResponsePayload> {
   const session = getOrCreateSession(waId);
   const normalizedText = textInput.trim().toLowerCase();
@@ -38,7 +39,7 @@ export async function processZenerMessage(waId: string, textInput: string, inter
   }
 
   // Permitir reinicio con la palabra exacta "Inicio" salvo si está bloqueado por cobertura
- if (normalizedText === 'inicio' && (session.state as string) !== 'RECHAZADO_COB') {
+  if (normalizedText === 'inicio' && (session.state as string) !== 'RECHAZADO_COB') {
     session.state = 'ZONA_1A';
     session.ciudad = undefined;
     session.categoriaFalla = undefined;
@@ -77,7 +78,7 @@ export async function processZenerMessage(waId: string, textInput: string, inter
           return {
             type: 'buttons',
             text: 'Selecciona la categoría general de la falla de tu televisor:',
-            buttons: ['Posible falla display', 'Posible falla de LED', 'Posible falla placa']
+            buttons: ['Falla de Display', 'Falla de LEDs', 'Falla de Placa']
           };
         }
       }
@@ -113,7 +114,7 @@ export async function processZenerMessage(waId: string, textInput: string, inter
           return {
             type: 'buttons',
             text: 'Selecciona la categoría general de la falla de tu televisor:',
-            buttons: ['Posible falla display', 'Posible falla de LED', 'Posible falla placa']
+            buttons: ['Falla de Display', 'Falla de LEDs', 'Falla de Placa']
           };
         }
       }
@@ -180,11 +181,11 @@ export async function processZenerMessage(waId: string, textInput: string, inter
               { id: 'placa_3', title: '3. Rayo o tormenta' },
               { id: 'placa_4', title: '4. Colgado en el logo' },
               { id: 'placa_5', title: '5. Reinicio continuo' },
-              { id: 'placa_6', title: '6. HDMI/USB sin señal' },
+              { id: 'placa_6', title: '6. Puertos HDMI/USB' },
               { id: 'placa_7', title: '7. Falla Apps/Wi-Fi' },
               { id: 'placa_8', title: '8. Imag bien sin audio' },
               { id: 'placa_9', title: '9. Standby titila seg' },
-              { id: 'placa_10', title: '10. Prende cuando quier' }
+              { id: 'placa_10', title: '10. Falla de encendido' }
             ]
           }]
         };
@@ -306,12 +307,12 @@ async function sendAlertToTechnician(session: UserSession): Promise<void> {
   }
 
   const cleanPhone = session.waId.replace(/\D/g, '');
-  const alertText = `🔥 NEW CLIENTE CALIFICADO - ZENER\n📱 Contacto Cliente: https://wa.me{cleanPhone}\n📍 Ciudad: ${session.ciudad || 'No especificada'}\n🛠️ Falla: [${session.categoriaFalla || ''}] ${session.fallaEspecifica || ''}\n📺 Marca: ${session.marca || ''}\n📏 Tamaño: ${session.tamano || ''}`;
+  const alertText = `🔥 NEW CLIENTE CALIFICADO - ZENER\n📱 Contacto Cliente: https://wa.me{cleanPhone}\n📍 Ciudad: ${session.ciudad || 'No especificada'}\n🛠️ Falla: [${session.categoriaFalla || ''}] ${session.fallaEspecifica || ''}\n📺 Marca: ${session.marca || ''}\n📐 Tamaño: ${session.tamano || ''}`;
 
   try {
     const axios = (await import('axios')).default;
     await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      `https://facebook.com{PHONE_NUMBER_ID}/messages`,
       {
         messaging_product: 'whatsapp',
         to: '595981121588',
