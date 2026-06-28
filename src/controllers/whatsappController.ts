@@ -80,8 +80,8 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
     console.error('Error: Faltan variables de entorno META_ACCESS_TOKEN o META_PHONE_NUMBER_ID.');
     return;
   }
+    const url = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
 
-  const url = `https://facebook.com{PHONE_NUMBER_ID}/messages`;
   let data: any = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
