@@ -1,15 +1,18 @@
 import { ZenerState, UserSession } from '../types/zener.js';
 
-// Base de datos temporal en memoria para las sesiones de los clientes
+// Base de datos temporal en memoria para las sesiones de los clientes de Zener
 const sessions = new Map<string, UserSession>();
 
-// Mensajes oficiales del sistema Zener sanitizados y corregidos
+// Mensajes oficiales del sistema Zener sanitizados con codificación limpia y tildes correctas
 export const TEXTO_RECHAZO_COBERTURA = `Lo sentimos, tu ubicación está fuera de nuestra zona de cobertura. Brindamos servicio técnico exclusivo a domicilio únicamente dentro de las ciudades que figuran en nuestra lista. ¡Gracias por tu contacto!`;
 
 export const TEXTO_RECHAZO_DISPLAY = `Analizando el síntoma seleccionado, tu televisor presenta una falla de display (pantalla). Por razones técnicas y de costo, no realizamos cambios ni reparaciones de pantallas. Si deseas cotizar la reparación de OTRO televisor diferente, escribe la palabra Inicio para reiniciar el formulario. ¡Gracias por tu contacto!`;
 
 export const TEXTO_EXITO_CLIENTE = `Completaste el formulario con éxito. El técnico asignado a tu caso te escribirá directamente desde su número personal para dar seguimiento. ¡Muchas gracias por tu tiempo!`;
 
+/**
+ * Recupera una sesión existente o crea una nueva bajo el estado inicial ZONA_1A
+ */
 export function getOrCreateSession(waId: string): UserSession {
   if (!sessions.has(waId)) {
     sessions.set(waId, {
@@ -28,7 +31,6 @@ export interface WhatsAppResponsePayload {
   listTitle?: string;
   listSections?: { title: string; rows: { id: string; title: string; description?: string }[] }[];
 }
-
 export async function processZenerMessage(waId: string, textInput: string, interactiveId?: string): Promise<WhatsAppResponsePayload> {
   const session = getOrCreateSession(waId);
   const normalizedText = textInput.trim().toLowerCase();
@@ -48,7 +50,7 @@ export async function processZenerMessage(waId: string, textInput: string, inter
     session.tamano = undefined;
   }
 
-  // Si ya completó con éxito
+  // Si ya completó con éxito el formulario
   if (session.state === 'CALIFICADO') {
     return { type: 'text', text: TEXTO_EXITO_CLIENTE };
   }
@@ -310,16 +312,13 @@ async function sendAlertToTechnician(session: UserSession): Promise<void> {
   const letrasWA = ['w', 'a', '.', 'm', 'e'];
   const urlWA = new URL("https://" + letrasWA.join(""));
   urlWA.pathname = "/" + cleanPhone;
-  const alertText = `🔥 NEW CLIENTE CALIFICADO - ZENER\n📱 Contacto Cliente: ${urlWA.toString()}\n📍 Ciudad: ${session.ciudad || 'No específica'}\n🛠️ Falla: [${session.categoriaFalla || ''}] ${session.fallaEspecifica || ''}\n📺 Marca: ${session.marca || ''}\n📐 Tamaño: ${session.tamano || ''}`;
+
+  const alertText = "🔥 NEW CLIENTE CALIFICADO - ZENER\n📱 Contacto Cliente: " + urlWA.toString() + "\n📍 Ciudad: " + (session.ciudad || 'No especificada') + "\n🛠️ Falla: [" + (session.categoriaFalla || '') + "] " + (session.fallaEspecifica || '') + "\n📺 Marca: " + (session.marca || '') + "\n📐 Tamaño: " + (session.tamano || '');
 
   try {
-        const axios = (await import('axios')).default;
-
-    // El sistema une el protocolo y el dominio de Meta automáticamente
-        const letrasDominio = ['g', 'r', 'a', 'p', 'h', '.', 'f', 'a', 'c', 'e', 'b', 'o', 'o', 'k', '.', 'c', 'o', 'm'];
-        const urlMeta = new URL("https://" + letrasDominio.join(""));
-    
-    // El sistema construye la ruta limpia usando la versión v18.0 y tu ID de teléfono
+    const axios = (await import('axios')).default;
+    const letrasDominio = ['g', 'r', 'a', 'p', 'h', '.', 'f', 'a', 'c', 'e', 'b', 'o', 'o', 'k', '.', 'c', 'o', 'm'];
+    const urlMeta = new URL("https://" + letrasDominio.join(""));
     urlMeta.pathname = "v18.0/" + PHONE_NUMBER_ID + "/messages";
 
     await axios.post(
@@ -334,3 +333,8 @@ async function sendAlertToTechnician(session: UserSession): Promise<void> {
         headers: { Authorization: "Bearer " + WHATSAPP_TOKEN }
       }
     );
+    console.log("Alerta enviada al técnico para el cliente: " + session.waId);
+  } catch (error: any) {
+    console.error('Error al enviar la alerta:', error?.response?.data || error.message);
+  }
+}

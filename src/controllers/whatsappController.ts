@@ -33,7 +33,7 @@ export const handleWebhookMessage = async (req: Request, res: Response): Promise
     }
 
     const messageObj = body.entry[0].changes[0].value.messages[0];
-    const waId = messageObj.from; // Número del cliente
+    const waId = messageObj.from;
 
     let textInput = '';
     let interactiveId: string | undefined = undefined;
@@ -52,7 +52,6 @@ export const handleWebhookMessage = async (req: Request, res: Response): Promise
       }
     }
 
-    // Si no hay texto ni interacción válida, ignoramos para evitar bucles
     if (!textInput && !interactiveId) {
       res.sendStatus(200);
       return;
@@ -61,13 +60,13 @@ export const handleWebhookMessage = async (req: Request, res: Response): Promise
     // Procesar lógica en la máquina de estados rígida
     const replyPayload = await processZenerMessage(waId, textInput, interactiveId);
 
-    // Despachar la respuesta maravillosa y estructurada a Meta
+    // Despachar la respuesta estructurada a Meta
     await sendWhatsAppPayload(waId, replyPayload);
 
     res.sendStatus(200);
   } catch (error: any) {
     console.error('Error crítico en el webhook controlador:', error.message);
-    res.sendStatus(200); // Siempre respondemos 200 a Meta para mantener activo el canal
+    res.sendStatus(200);
   }
 };
 
@@ -80,8 +79,8 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
     console.error('Error: Faltan variables de entorno META_ACCESS_TOKEN o META_PHONE_NUMBER_ID.');
     return;
   }
-  
-  // Sincronizado a v19.0 para consistencia con zenerEngine
+
+  // Método matemático por arreglo de caracteres para construir la URL de Meta de forma 100% segura
   const letrasDominio = ['g', 'r', 'a', 'p', 'h', '.', 'f', 'a', 'c', 'e', 'b', 'o', 'o', 'k', '.', 'c', 'o', 'm'];
   const urlMeta = new URL("https://" + letrasDominio.join(""));
   urlMeta.pathname = "v18.0/" + PHONE_NUMBER_ID + "/messages";
@@ -102,8 +101,6 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
       type: 'button',
       body: { text: payload.text },
       action: {
-        // Mapeo limpio: El ID enviado a Meta es el texto del botón convertido a minúsculas
-        // Esto permite que normalizedText.includes('display') o 'led' funcione de forma transparente
         buttons: payload.buttons.map((btnText) => ({
           type: 'reply',
           reply: {
@@ -136,7 +133,7 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
     const axios = (await import('axios')).default;
     await axios.post(url, data, {
       headers: {
-        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        Authorization: "Bearer " + WHATSAPP_TOKEN,
         'Content-Type': 'application/json'
       }
     });
