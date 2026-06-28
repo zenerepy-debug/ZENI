@@ -200,9 +200,9 @@ export async function processZenerMessage(waId: string, textInput: string, inter
         return { type: 'text', text: TEXTO_RECHAZO_DISPLAY };
       }
       return { type: 'text', text: 'Por favor, selecciona un síntoma de la lista.' };
+
     case 'FALLA_LED_2C':
-    case 'FALLA_PLACA_2D':
-      if (interactiveId) {
+      if (interactiveId && interactiveId.startsWith('led_')) {
         session.fallaEspecifica = textInput;
         session.state = 'MARCA_3';
         return {
@@ -221,15 +221,41 @@ export async function processZenerMessage(waId: string, textInput: string, inter
               { id: 'm_midas', title: 'Midas' },
               { id: 'm_fama', title: 'Fama' },
               { id: 'm_hisense', title: 'Hisense' },
-              { id: 'm_generica', title: 'Otra marca genérica' }
+              { id: 'm_generica', title: 'Otra marca genética' }
             ]
           }]
         };
       }
-      return { type: 'text', text: 'Por favor, selecciona una falla válida de la lista.' };
+      return { type: 'text', text: 'Por favor, selecciona un síntoma válido de la lista de LEDs.' };
 
+    case 'FALLA_PLACA_2D':
+      if (interactiveId && interactiveId.startsWith('placa_')) {
+        session.fallaEspecifica = textInput;
+        session.state = 'MARCA_3';
+        return {
+          type: 'list',
+          text: 'Selecciona la marca de tu televisor:',
+          listTitle: 'Marcas de TV',
+          listSections: [{
+            title: 'Fabricantes',
+            rows: [
+              { id: 'm_samsung', title: 'Samsung' },
+              { id: 'm_lg', title: 'LG' },
+              { id: 'm_sony', title: 'Sony' },
+              { id: 'm_philips', title: 'Philips' },
+              { id: 'm_tokyo', title: 'Tokyo' },
+              { id: 'm_jam', title: 'Jam' },
+              { id: 'm_midas', title: 'Midas' },
+              { id: 'm_fama', title: 'Fama' },
+              { id: 'm_hisense', title: 'Hisense' },
+              { id: 'm_generica', title: 'Otra marca genética' }
+            ]
+          }]
+        };
+      }
+      return { type: 'text', text: 'Por favor, selecciona un síntoma válido de la lista de Placa.' };
     case 'MARCA_3':
-      if (interactiveId) {
+      if (interactiveId && interactiveId.startsWith('m_')) {
         session.marca = textInput;
         session.state = 'TAMANO_4A';
         return {
@@ -253,10 +279,10 @@ export async function processZenerMessage(waId: string, textInput: string, inter
           }]
         };
       }
-      return { type: 'text', text: 'Por favor, selecciona la marca de tu televisor.' };
+      return { type: 'text', text: 'Por favor, selecciona la marca de tu televisor utilizando las opciones provistas.' };
 
     case 'TAMANO_4A':
-      if (interactiveId) {
+      if (interactiveId && interactiveId.startsWith('t_')) {
         if (interactiveId === 't_mas') {
           session.state = 'TAMANO_4B';
           return {
@@ -286,7 +312,7 @@ export async function processZenerMessage(waId: string, textInput: string, inter
       return { type: 'text', text: 'Por favor, selecciona el tamaño de la lista.' };
 
     case 'TAMANO_4B':
-      if (interactiveId) {
+      if (interactiveId && interactiveId.startsWith('t_')) {
         session.tamano = textInput;
         session.state = 'CALIFICADO';
         await sendAlertToTechnician(session);
