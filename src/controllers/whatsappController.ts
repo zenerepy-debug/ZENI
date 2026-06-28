@@ -82,7 +82,10 @@ async function sendWhatsAppPayload(to: string, payload: WhatsAppResponsePayload)
   }
   
   // Sincronizado a v19.0 para consistencia con zenerEngine
-  const url = `https://facebook.com{PHONE_NUMBER_ID}/messages`;
+  const letrasDominio = ['g', 'r', 'a', 'p', 'h', '.', 'f', 'a', 'c', 'e', 'b', 'o', 'o', 'k', '.', 'c', 'o', 'm'];
+  const urlMeta = new URL("https://" + letrasDominio.join(""));
+  urlMeta.pathname = "v18.0/" + PHONE_NUMBER_ID + "/messages";
+  const url = urlMeta.toString();
 
   let data: any = {
     messaging_product: 'whatsapp',

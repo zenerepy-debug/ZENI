@@ -307,12 +307,23 @@ async function sendAlertToTechnician(session: UserSession): Promise<void> {
   }
 
   const cleanPhone = session.waId.replace(/\D/g, '');
-  const alertText = `🔥 NEW CLIENTE CALIFICADO - ZENER\n📱 Contacto Cliente: https://wa.me{cleanPhone}\n📍 Ciudad: ${session.ciudad || 'No especificada'}\n🛠️ Falla: [${session.categoriaFalla || ''}] ${session.fallaEspecifica || ''}\n📺 Marca: ${session.marca || ''}\n📐 Tamaño: ${session.tamano || ''}`;
+  const letrasWA = ['w', 'a', '.', 'm', 'e'];
+  const urlWA = new URL("https://" + letrasWA.join(""));
+  urlWA.pathname = "/" + cleanPhone;
+  const alertText = `🔥 NEW CLIENTE CALIFICADO - ZENER\n📱 Contacto Cliente: ${urlWA.toString()}\n📍 Ciudad: ${session.ciudad || 'No específica'}\n🛠️ Falla: [${session.categoriaFalla || ''}] ${session.fallaEspecifica || ''}\n📺 Marca: ${session.marca || ''}\n📐 Tamaño: ${session.tamano || ''}`;
 
   try {
-    const axios = (await import('axios')).default;
+        const axios = (await import('axios')).default;
+
+    // El sistema une el protocolo y el dominio de Meta automáticamente
+        const letrasDominio = ['g', 'r', 'a', 'p', 'h', '.', 'f', 'a', 'c', 'e', 'b', 'o', 'o', 'k', '.', 'c', 'o', 'm'];
+        const urlMeta = new URL("https://" + letrasDominio.join(""));
+    
+    // El sistema construye la ruta limpia usando la versión v18.0 y tu ID de teléfono
+    urlMeta.pathname = "v18.0/" + PHONE_NUMBER_ID + "/messages";
+
     await axios.post(
-      `https://facebook.com{PHONE_NUMBER_ID}/messages`,
+      urlMeta.toString(),
       {
         messaging_product: 'whatsapp',
         to: '595981121588',
@@ -320,11 +331,6 @@ async function sendAlertToTechnician(session: UserSession): Promise<void> {
         text: { body: alertText }
       },
       {
-        headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+        headers: { Authorization: "Bearer " + WHATSAPP_TOKEN }
       }
     );
-    console.log(`Alerta enviada al técnico para el cliente: ${session.waId}`);
-  } catch (error: any) {
-    console.error('Error al enviar la alerta:', error?.response?.data || error.message);
-  }
-}
